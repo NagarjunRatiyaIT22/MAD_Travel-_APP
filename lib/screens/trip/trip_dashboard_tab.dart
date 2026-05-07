@@ -106,7 +106,7 @@ class TripDashboardTab extends StatelessWidget {
                   ),
                   if (trip.budget > 0 && totalExpenses > trip.budget)
                     Padding(
-                      padding: const EdgeInsets.top(8.0),
+                      padding: const EdgeInsets.only(top: 8.0),
                       child: Text('Over budget by ${Formatters.currency(totalExpenses - trip.budget, symbol: theme.currencySymbol)}', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.error)),
                     ),
                 ],

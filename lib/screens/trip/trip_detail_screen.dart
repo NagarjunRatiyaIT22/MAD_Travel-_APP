@@ -144,7 +144,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
 
     // Group by date
     final grouped = <String, List<dynamic>>{};
-    for (final item in items) {
+    for (final item in provider.itineraryItems) {
       final key = Formatters.date(item.date);
       grouped.putIfAbsent(key, () => []).add(item);
     }
