@@ -9,7 +9,8 @@ import '../../utils/formatters.dart';
 
 import '../../services/export_service.dart';
 import '../../widgets/participant_avatar.dart';
-
+import 'trip_dashboard_tab.dart';
+import '../expense/expense_filter_sheet.dart';
 
 class TripDetailScreen extends StatefulWidget {
   final String tripId;
@@ -20,11 +21,13 @@ class TripDetailScreen extends StatefulWidget {
 
 class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
+  String? _filterParticipantId;
+  String _sortOption = 'latest';
 
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl = TabController(length: 5, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TripProvider>().loadTripData(widget.tripId);
     });
@@ -90,7 +93,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
               ]),
             ),
             // Tab bar
-            TabBar(controller: _tabCtrl, labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13), tabs: const [
+            TabBar(controller: _tabCtrl, isScrollable: true, tabAlignment: TabAlignment.start, labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13), tabs: const [
+              Tab(text: 'Dashboard'),
               Tab(text: 'Itinerary'),
               Tab(text: 'Expenses'),
               Tab(text: 'Splits'),
@@ -98,6 +102,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
             ]),
             // Tab views
             Expanded(child: TabBarView(controller: _tabCtrl, children: [
+              TripDashboardTab(trip: trip),
               _buildItineraryTab(trip),
               _buildExpensesTab(trip),
               _buildSplitsTab(),
@@ -108,9 +113,9 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          if (_tabCtrl.index == 0) Navigator.pushNamed(context, '/add-itinerary', arguments: widget.tripId);
-          else if (_tabCtrl.index == 1) Navigator.pushNamed(context, '/add-expense', arguments: widget.tripId);
-          else if (_tabCtrl.index == 3) _showAddParticipantDialog(context, widget.tripId);
+          if (_tabCtrl.index == 1) Navigator.pushNamed(context, '/add-itinerary', arguments: widget.tripId);
+          else if (_tabCtrl.index == 2) Navigator.pushNamed(context, '/add-expense', arguments: widget.tripId);
+          else if (_tabCtrl.index == 4) _showAddParticipantDialog(context, widget.tripId);
         },
         child: const Icon(Icons.add),
       ),
@@ -185,16 +190,63 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
   }
 
   Widget _buildExpensesTab(TripModel trip) {
-    final expenses = context.watch<TripProvider>().expenses;
+    var expenses = context.watch<TripProvider>().expenses;
     final participants = context.watch<TripProvider>().participants;
     final theme = context.watch<ThemeProvider>();
-    if (expenses.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Text('💰', style: TextStyle(fontSize: 48)),
-      const SizedBox(height: 12),
-      Text('No expenses yet', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
-    ]));
+    
+    // Apply Filters and Sorting
+    if (_filterParticipantId != null) {
+      expenses = expenses.where((e) => e.paidById == _filterParticipantId || e.splitBetweenIds.contains(_filterParticipantId)).toList();
+    }
+    
+    if (_sortOption == 'latest') {
+      expenses.sort((a, b) => b.date.compareTo(a.date));
+    } else if (_sortOption == 'oldest') {
+      expenses.sort((a, b) => a.date.compareTo(b.date));
+    } else if (_sortOption == 'highest') {
+      expenses.sort((a, b) => b.amount.compareTo(a.amount));
+    }
 
-    return ListView.builder(padding: const EdgeInsets.all(16), itemCount: expenses.length, itemBuilder: (_, i) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${expenses.length} Expenses', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.grey)),
+              TextButton.icon(
+                onPressed: () async {
+                  final result = await showModalBottomSheet<Map<String, dynamic>>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => ExpenseFilterSheet(
+                      participants: participants,
+                      initialParticipantId: _filterParticipantId,
+                      initialSortOption: _sortOption,
+                    ),
+                  );
+                  if (result != null) {
+                    setState(() {
+                      _filterParticipantId = result['participantId'];
+                      _sortOption = result['sortOption'];
+                    });
+                  }
+                },
+                icon: Icon(Icons.filter_list, size: 18, color: _filterParticipantId != null || _sortOption != 'latest' ? AppColors.primary : Colors.grey),
+                label: Text('Filter', style: TextStyle(color: _filterParticipantId != null || _sortOption != 'latest' ? AppColors.primary : Colors.grey)),
+              ),
+            ],
+          ),
+        ),
+        if (expenses.isEmpty) Expanded(child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('💰', style: TextStyle(fontSize: 48)),
+          const SizedBox(height: 12),
+          Text('No expenses found', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+        ])))
+        else Expanded(
+          child: ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 16), itemCount: expenses.length, itemBuilder: (_, i) {
       final e = expenses[i];
       final payer = participants.where((p) => p.id == e.paidById).firstOrNull;
       final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -212,7 +264,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
           Text(Formatters.currency(e.amount, symbol: theme.currencySymbol), style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: AppColors.primary)),
         ]),
       );
-    });
+    }),
+        ),
+      ],
+    );
   }
 
   Widget _buildSplitsTab() {

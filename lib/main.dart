@@ -11,6 +11,7 @@ import 'providers/trip_provider.dart';
 
 // Services
 import 'services/connectivity_service.dart';
+import 'services/sync_service.dart';
 
 // Theme
 import 'theme/app_theme.dart';
@@ -29,6 +30,9 @@ import 'screens/analytics/analytics_screen.dart';
 import 'screens/ai/ai_assistant_screen.dart';
 import 'screens/settings/profile_screen.dart';
 
+// Widgets
+import 'widgets/offline_banner.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -38,8 +42,27 @@ void main() async {
   runApp(const TripMateApp());
 }
 
-class TripMateApp extends StatelessWidget {
+class TripMateApp extends StatefulWidget {
   const TripMateApp({super.key});
+
+  @override
+  State<TripMateApp> createState() => _TripMateAppState();
+}
+
+class _TripMateAppState extends State<TripMateApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SyncService().initialize(context);
+    });
+  }
+
+  @override
+  void dispose() {
+    SyncService().dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +81,7 @@ class TripMateApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
+            builder: (context, child) => OfflineBanner(child: child!),
             initialRoute: '/',
             onGenerateRoute: _generateRoute,
           );
