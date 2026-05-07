@@ -82,32 +82,49 @@ class AIService {
   static Future<String> chat(String message) async {
     final lower = message.toLowerCase();
 
-    if (lower.contains('hotel') || lower.contains('stay')) {
+    if (lower.contains('hotel') || lower.contains('stay') || lower.contains('accommodation')) {
       return _simulateDelay(
-          '🏨 I recommend looking for stays on booking apps. For budget trips, hostels offer great value. For groups, Airbnb-style stays work best as you can split costs!');
+          '🏨 For stays, I recommend checking booking apps. If you are on a budget, hostels offer great value. For groups, Airbnb-style stays work best since you can easily split costs!');
     }
     if (lower.contains('food') || lower.contains('eat') || lower.contains('restaurant')) {
       return _simulateDelay(
-          '🍽️ Try the local street food for an authentic experience! Ask locals for their favorite spots. Group dining is always more fun and cost-effective.');
+          '🍽️ You absolutely must try the local street food! Ask locals for their favorite hidden spots. Group dining is always fun and a great way to try more dishes while sharing the cost.');
     }
-    if (lower.contains('budget') || lower.contains('money') || lower.contains('cost')) {
+    if (lower.contains('budget') || lower.contains('money') || lower.contains('cost') || lower.contains('expensive')) {
       return _simulateDelay(
-          '💰 Great question! I suggest allocating 35% for accommodation, 25% for food, 20% for transport, and keeping 20% for activities and emergencies.');
+          '💰 Let\'s talk budget! A smart allocation is 35% for accommodation, 25% for food, 20% for transport, and 20% for activities/emergencies. Always track expenses daily.');
     }
-    if (lower.contains('pack') || lower.contains('carry') || lower.contains('luggage')) {
+    if (lower.contains('pack') || lower.contains('carry') || lower.contains('luggage') || lower.contains('clothes')) {
       return _simulateDelay(
-          '🧳 Pack light! Essentials: comfortable shoes, weather-appropriate clothes, medications, charger, power bank, and a reusable water bottle.');
+          '🧳 Packing tip: Pack light! Bring comfortable walking shoes, weather-appropriate layers, basic medications, a power bank, and definitely a reusable water bottle.');
     }
-    if (lower.contains('safe') || lower.contains('safety')) {
+    if (lower.contains('safe') || lower.contains('safety') || lower.contains('danger')) {
       return _simulateDelay(
-          '🛡️ Always share your itinerary with someone, keep copies of documents, use registered transport, and stay aware of your surroundings.');
+          '🛡️ Safety first! Always share your live location/itinerary with someone back home, keep digital copies of documents, and stay aware of your surroundings in crowded tourist spots.');
     }
     if (lower.contains('hello') || lower.contains('hi') || lower.contains('hey')) {
       return _simulateDelay(
-          '👋 Hello! I\'m your AI Travel Assistant. Ask me about destinations, budgets, packing tips, or anything travel-related!');
+          '👋 Hello there! I\'m your AI Travel Assistant. Ask me about destinations, budgets, packing tips, or anything travel-related!');
+    }
+    if (lower.contains('goa') || lower.contains('beach')) {
+      return _simulateDelay(
+          '🌴 Goa is fantastic! Make sure to explore both North Goa (for parties and vibrant beaches like Baga) and South Goa (for pristine, quiet beaches like Palolem). Renting a scooter is the best way to get around!');
+    }
+    if (lower.contains('plan') || lower.contains('itinerary') || lower.contains('trip to')) {
+      return _simulateDelay(
+          '🗺️ Planning a trip requires a good balance! Don\'t overpack your schedule. I recommend picking 1-2 major activities per day, and leaving the evening open for exploring local culture and food. Where are you thinking of going?');
     }
 
-    return _simulateDelay(
-        '✨ That\'s a great question! For the best travel experience, I recommend planning ahead, setting a clear budget, and being flexible with your itinerary. Would you like specific tips on destinations, budget, or activities?');
+    // Dynamic Fallback
+    final responses = [
+      '✨ That sounds exciting! When planning your travels, it\'s great to remain flexible. What specific aspects are you looking for help with? (e.g., Budgeting, Food, Stays?)',
+      '🌍 Travel opens up so many possibilities! Whether you\'re looking for adventure or relaxation, I\'m here to help you structure your itinerary. Could you share a bit more detail?',
+      '🎒 Got it! A well-planned trip makes all the difference. Make sure to use the "Trip Dashboard" in the app to track your group\'s expenses. What destination is on your mind?',
+      '🧭 Interesting! If you want a tailored recommendation, just tell me the destination or the type of vibe you\'re going for (like beaches, mountains, or city life).',
+    ];
+    
+    // Pick a pseudo-random response based on message length so it feels dynamic
+    final index = message.length % responses.length;
+    return _simulateDelay(responses[index]);
   }
 }
