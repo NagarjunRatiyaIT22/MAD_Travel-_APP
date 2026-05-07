@@ -57,16 +57,23 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_startDate == null || _endDate == null) { NotificationService.showSnackBar(context, 'Please select dates', isError: true); return; }
+    
     setState(() => _loading = true);
     final provider = context.read<TripProvider>();
-    if (_isEditing) {
-      final trip = provider.trips.firstWhere((t) => t.id == widget.editTripId);
-      await provider.updateTrip(trip.copyWith(name: _nameCtrl.text.trim(), destination: _destCtrl.text.trim(), description: _descCtrl.text.trim(), startDate: _startDate, endDate: _endDate, budget: double.tryParse(_budgetCtrl.text) ?? 0, coverImageIndex: _coverIndex));
-    } else {
-      await provider.createTrip(name: _nameCtrl.text.trim(), destination: _destCtrl.text.trim(), description: _descCtrl.text.trim(), startDate: _startDate!, endDate: _endDate!, budget: double.tryParse(_budgetCtrl.text) ?? 0, coverImageIndex: _coverIndex, createdBy: 'user');
+    
+    try {
+      if (_isEditing) {
+        final trip = provider.trips.firstWhere((t) => t.id == widget.editTripId);
+        await provider.updateTrip(trip.copyWith(name: _nameCtrl.text.trim(), destination: _destCtrl.text.trim(), description: _descCtrl.text.trim(), startDate: _startDate, endDate: _endDate, budget: double.tryParse(_budgetCtrl.text) ?? 0, coverImageIndex: _coverIndex));
+      } else {
+        await provider.createTrip(name: _nameCtrl.text.trim(), destination: _destCtrl.text.trim(), description: _descCtrl.text.trim(), startDate: _startDate!, endDate: _endDate!, budget: double.tryParse(_budgetCtrl.text) ?? 0, coverImageIndex: _coverIndex, createdBy: 'user');
+      }
+      if (mounted) { NotificationService.showSnackBar(context, _isEditing ? 'Trip updated!' : 'Trip created!'); Navigator.pop(context); }
+    } catch (e) {
+      if (mounted) NotificationService.showSnackBar(context, 'Error saving trip: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    setState(() => _loading = false);
-    if (mounted) { NotificationService.showSnackBar(context, _isEditing ? 'Trip updated!' : 'Trip created!'); Navigator.pop(context); }
   }
 
   @override
@@ -86,7 +93,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
           const SizedBox(height: 16),
           TextFormField(controller: _descCtrl, maxLines: 3, decoration: const InputDecoration(labelText: 'Description (optional)', prefixIcon: Icon(Icons.description_outlined))),
           const SizedBox(height: 16),
-          TextFormField(controller: _budgetCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Budget', prefixIcon: Icon(Icons.account_balance_wallet_outlined))),
+          TextFormField(controller: _budgetCtrl, validator: Validators.budget, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Budget', prefixIcon: Icon(Icons.account_balance_wallet_outlined))),
           const SizedBox(height: 16),
           Row(children: [
             Expanded(child: InkWell(onTap: () => _pickDate(true), child: InputDecorator(decoration: const InputDecoration(labelText: 'Start Date', prefixIcon: Icon(Icons.calendar_today)), child: Text(_startDate != null ? Formatters.date(_startDate!) : 'Select')))),

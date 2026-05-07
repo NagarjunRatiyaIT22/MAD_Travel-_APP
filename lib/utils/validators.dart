@@ -23,7 +23,14 @@ class Validators {
   static String? amount(String? value) {
     if (value == null || value.trim().isEmpty) return 'Amount is required';
     final n = double.tryParse(value.trim());
-    if (n == null || n <= 0) return 'Enter a valid amount';
+    if (n == null || n <= 0) return 'Amount must be greater than zero';
+    return null;
+  }
+
+  static String? budget(String? value) {
+    if (value == null || value.trim().isEmpty) return null; // optional
+    final n = double.tryParse(value.trim());
+    if (n != null && n < 0) return 'Budget cannot be negative';
     return null;
   }
 

@@ -6,9 +6,10 @@ import '../../providers/trip_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../models/trip_model.dart';
 import '../../utils/formatters.dart';
-
+import '../../services/notification_service.dart';
 import '../../services/export_service.dart';
 import '../../widgets/participant_avatar.dart';
+import '../../widgets/empty_state.dart';
 import 'trip_dashboard_tab.dart';
 import '../expense/expense_filter_sheet.dart';
 
@@ -72,7 +73,13 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
                 const PopupMenuItem(value: 'delete', child: Text('Delete Trip')),
               ], onSelected: (v) async {
                 if (v == 'edit') Navigator.pushNamed(context, '/edit-trip', arguments: widget.tripId);
-                if (v == 'delete') { await provider.deleteTrip(widget.tripId); if (mounted) Navigator.pop(context); }
+                if (v == 'delete') {
+                  final confirm = await NotificationService.showConfirmDialog(context, title: 'Delete Trip', message: 'Are you sure you want to delete this trip and all its data?', isDestructive: true);
+                  if (confirm && mounted) {
+                    await provider.deleteTrip(widget.tripId);
+                    if (mounted) Navigator.pop(context);
+                  }
+                }
                 if (v == 'export') {
                   await ExportService.exportTripReport(trip: trip, participants: provider.participants, expenses: provider.expenses, itinerary: provider.itineraryItems, currencySymbol: theme.currencySymbol);
                 }
@@ -132,13 +139,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
   }
 
   Widget _buildItineraryTab(TripModel trip) {
-    final items = context.watch<TripProvider>().itineraryItems;
-    if (items.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Text('📋', style: TextStyle(fontSize: 48)),
-      const SizedBox(height: 12),
-      Text('No itinerary yet', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
-      Text('Add activities for your trip', style: GoogleFonts.poppins(color: Colors.grey)),
-    ]));
+    final provider = context.watch<TripProvider>();
+    if (provider.itineraryItems.isEmpty) return EmptyStateWidget(icon: '🗓️', title: 'No itinerary yet', subtitle: 'Add places to visit or activities to do.', actionLabel: 'Add Itinerary', onAction: () => Navigator.pushNamed(context, '/add-itinerary', arguments: widget.tripId));
 
     // Group by date
     final grouped = <String, List<dynamic>>{};
@@ -240,11 +242,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
             ],
           ),
         ),
-        if (expenses.isEmpty) Expanded(child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('💰', style: TextStyle(fontSize: 48)),
-          const SizedBox(height: 12),
-          Text('No expenses found', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
-        ])))
+        if (expenses.isEmpty) Expanded(child: EmptyStateWidget(icon: '💰', title: 'No expenses found', subtitle: 'Add an expense to start tracking.', actionLabel: 'Add Expense', onAction: () => Navigator.pushNamed(context, '/add-expense', arguments: widget.tripId)))
         else Expanded(
           child: ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 16), itemCount: expenses.length, itemBuilder: (_, i) {
       final e = expenses[i];
@@ -279,36 +277,56 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
     return SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('Balances', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
-      ...provider.participants.map((p) {
+      if (provider.participants.isEmpty) Padding(padding: const EdgeInsets.all(20), child: Center(child: Text('No participants yet', style: GoogleFonts.poppins(color: Colors.grey))))
+      else ...provider.participants.map((p) {
         final bal = balances[p.id] ?? 0;
         final isPositive = bal >= 0;
         return ListTile(
           contentPadding: EdgeInsets.zero,
           leading: ParticipantAvatar(name: p.name, colorIndex: p.avatarColorIndex),
           title: Text(p.name, style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
-          trailing: Text('${isPositive ? '+' : ''}${Formatters.currency(bal, symbol: theme.currencySymbol)}',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: isPositive ? AppColors.success : AppColors.error)),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isPositive ? AppColors.success.withOpacity(0.1) : AppColors.error.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text('${isPositive ? '+' : ''}${Formatters.currency(bal, symbol: theme.currencySymbol)}',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: isPositive ? AppColors.success : AppColors.error)),
+          ),
         );
       }),
       const Divider(height: 32),
-      Text('Settlements', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 8),
-      if (settlements.isEmpty) Padding(padding: const EdgeInsets.all(20), child: Center(child: Text('All settled! ✅', style: GoogleFonts.poppins(color: Colors.grey))))
+      Text('Suggested Settlements', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 12),
+      if (settlements.isEmpty) Padding(padding: const EdgeInsets.all(20), child: Center(child: Text('All settled! ✅', style: GoogleFonts.poppins(color: Colors.grey, fontSize: 16))))
       else ...settlements.map((s) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: AppColors.primary.withAlpha(15), borderRadius: BorderRadius.circular(12)),
-        child: Row(children: [
-          Text(s.fromName, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
-          const SizedBox(width: 8),
-          const Icon(Icons.arrow_forward, size: 16, color: AppColors.primary),
-          const SizedBox(width: 8),
-          Text(Formatters.currency(s.amount, symbol: theme.currencySymbol), style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: AppColors.primary, fontSize: 13)),
-          const SizedBox(width: 8),
-          const Icon(Icons.arrow_forward, size: 16, color: AppColors.primary),
-          const SizedBox(width: 8),
-          Text(s.toName, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
-        ]),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)]),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.orange.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(child: Text(s.fromName, style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.orange[900]), overflow: TextOverflow.ellipsis)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              child: Row(
+                children: [
+                  const Icon(Icons.payment, size: 14, color: Colors.orange),
+                  const SizedBox(width: 4),
+                  Text(Formatters.currency(s.amount, symbol: theme.currencySymbol), style: GoogleFonts.poppins(fontWeight: FontWeight.w800, color: Colors.orange[800], fontSize: 14)),
+                ],
+              ),
+            ),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 8.0), child: Icon(Icons.arrow_forward_rounded, size: 20, color: Colors.orange)),
+            Expanded(child: Text(s.toName, style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.green[800]), textAlign: TextAlign.right, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
       )),
     ]));
   }
@@ -321,7 +339,12 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
         title: Text(p.name, style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
         subtitle: Text(p.email ?? p.phone ?? '', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
         trailing: IconButton(icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
-          onPressed: () => context.read<TripProvider>().removeParticipant(p.id, trip.id)),
+          onPressed: () async {
+            final confirm = await NotificationService.showConfirmDialog(context, title: 'Remove Member', message: 'Are you sure you want to remove ${p.name}? This will affect splits.', isDestructive: true);
+            if (confirm && mounted) {
+              await context.read<TripProvider>().removeParticipant(p.id, trip.id);
+            }
+          }),
       )),
     ]);
   }
@@ -340,8 +363,17 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
         ElevatedButton(onPressed: () async {
-          if (nameCtrl.text.trim().isEmpty) return;
-          await context.read<TripProvider>().addParticipant(tripId: tripId, name: nameCtrl.text.trim(), email: emailCtrl.text.trim().isNotEmpty ? emailCtrl.text.trim() : null, avatarColorIndex: DateTime.now().millisecond % 10);
+          final name = nameCtrl.text.trim();
+          final email = emailCtrl.text.trim();
+          if (name.isEmpty) return;
+          
+          final exists = context.read<TripProvider>().participants.any((p) => p.name.toLowerCase() == name.toLowerCase() || (email.isNotEmpty && p.email?.toLowerCase() == email.toLowerCase()));
+          if (exists) {
+            NotificationService.showSnackBar(ctx, 'Participant already exists', isError: true);
+            return;
+          }
+          
+          await context.read<TripProvider>().addParticipant(tripId: tripId, name: name, email: email.isNotEmpty ? email : null, avatarColorIndex: DateTime.now().millisecond % 10);
           if (ctx.mounted) Navigator.pop(ctx);
         }, child: const Text('Add')),
       ],

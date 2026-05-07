@@ -75,34 +75,49 @@ class TripProvider extends ChangeNotifier {
     int coverImageIndex = 0,
     required String createdBy,
   }) async {
-    final trip = TripModel(
-      id: _uuid.v4(),
-      name: name,
-      destination: destination,
-      description: description,
-      startDate: startDate,
-      endDate: endDate,
-      budget: budget,
-      coverImageIndex: coverImageIndex,
-      createdBy: createdBy,
-    );
-    await _db.saveTrip(trip);
-    _trips.insert(0, trip);
-    notifyListeners();
-    return trip;
+    try {
+      final trip = TripModel(
+        id: _uuid.v4(),
+        name: name,
+        destination: destination,
+        description: description,
+        startDate: startDate,
+        endDate: endDate,
+        budget: budget,
+        coverImageIndex: coverImageIndex,
+        createdBy: createdBy,
+      );
+      await _db.saveTrip(trip);
+      _trips.insert(0, trip);
+      notifyListeners();
+      return trip;
+    } catch (e) {
+      debugPrint('Error creating trip: $e');
+      rethrow;
+    }
   }
 
   Future<void> updateTrip(TripModel trip) async {
-    await _db.saveTrip(trip);
-    final idx = _trips.indexWhere((t) => t.id == trip.id);
-    if (idx >= 0) _trips[idx] = trip;
-    notifyListeners();
+    try {
+      await _db.saveTrip(trip);
+      final idx = _trips.indexWhere((t) => t.id == trip.id);
+      if (idx >= 0) _trips[idx] = trip;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error updating trip: $e');
+      rethrow;
+    }
   }
 
   Future<void> deleteTrip(String tripId) async {
-    await _db.deleteTrip(tripId);
-    _trips.removeWhere((t) => t.id == tripId);
-    notifyListeners();
+    try {
+      await _db.deleteTrip(tripId);
+      _trips.removeWhere((t) => t.id == tripId);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error deleting trip: $e');
+      rethrow;
+    }
   }
 
   // ═══ PARTICIPANT CRUD ═══
@@ -113,50 +128,64 @@ class TripProvider extends ChangeNotifier {
     String? phone,
     int avatarColorIndex = 0,
   }) async {
-    final p = ParticipantModel(
-      id: _uuid.v4(),
-      name: name,
-      email: email,
-      phone: phone,
-      avatarColorIndex: avatarColorIndex,
-      tripId: tripId,
-    );
-    await _db.saveParticipant(p);
-    _participants.add(p);
-    // Update trip participant IDs
-    final trip = _db.getTrip(tripId);
-    if (trip != null) {
-      final updated = trip.copyWith(
-        participantIds: [...trip.participantIds, p.id],
+    try {
+      final p = ParticipantModel(
+        id: _uuid.v4(),
+        name: name,
+        email: email,
+        phone: phone,
+        avatarColorIndex: avatarColorIndex,
+        tripId: tripId,
       );
-      await _db.saveTrip(updated);
-      final idx = _trips.indexWhere((t) => t.id == tripId);
-      if (idx >= 0) _trips[idx] = updated;
+      await _db.saveParticipant(p);
+      _participants.add(p);
+      final trip = _db.getTrip(tripId);
+      if (trip != null) {
+        final updated = trip.copyWith(
+          participantIds: [...trip.participantIds, p.id],
+        );
+        await _db.saveTrip(updated);
+        final idx = _trips.indexWhere((t) => t.id == tripId);
+        if (idx >= 0) _trips[idx] = updated;
+      }
+      notifyListeners();
+      return p;
+    } catch (e) {
+      debugPrint('Error adding participant: $e');
+      rethrow;
     }
-    notifyListeners();
-    return p;
   }
 
   Future<void> updateParticipant(ParticipantModel p) async {
-    await _db.saveParticipant(p);
-    final idx = _participants.indexWhere((x) => x.id == p.id);
-    if (idx >= 0) _participants[idx] = p;
-    notifyListeners();
+    try {
+      await _db.saveParticipant(p);
+      final idx = _participants.indexWhere((x) => x.id == p.id);
+      if (idx >= 0) _participants[idx] = p;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error updating participant: $e');
+      rethrow;
+    }
   }
 
   Future<void> removeParticipant(String id, String tripId) async {
-    await _db.deleteParticipant(id);
-    _participants.removeWhere((p) => p.id == id);
-    final trip = _db.getTrip(tripId);
-    if (trip != null) {
-      final updated = trip.copyWith(
-        participantIds: trip.participantIds.where((pid) => pid != id).toList(),
-      );
-      await _db.saveTrip(updated);
-      final idx = _trips.indexWhere((t) => t.id == tripId);
-      if (idx >= 0) _trips[idx] = updated;
+    try {
+      await _db.deleteParticipant(id);
+      _participants.removeWhere((p) => p.id == id);
+      final trip = _db.getTrip(tripId);
+      if (trip != null) {
+        final updated = trip.copyWith(
+          participantIds: trip.participantIds.where((pid) => pid != id).toList(),
+        );
+        await _db.saveTrip(updated);
+        final idx = _trips.indexWhere((t) => t.id == tripId);
+        if (idx >= 0) _trips[idx] = updated;
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error removing participant: $e');
+      rethrow;
     }
-    notifyListeners();
   }
 
   ParticipantModel? getParticipantById(String id) {
@@ -177,51 +206,71 @@ class TripProvider extends ChangeNotifier {
     String? location,
     String? notes,
   }) async {
-    final item = ItineraryModel(
-      id: _uuid.v4(),
-      tripId: tripId,
-      date: date,
-      time: time,
-      title: title,
-      description: description,
-      location: location,
-      notes: notes,
-      order: _itineraryItems.where((i) =>
-        i.date.year == date.year && i.date.month == date.month && i.date.day == date.day
-      ).length,
-    );
-    await _db.saveItineraryItem(item);
-    _itineraryItems.add(item);
-    _itineraryItems.sort((a, b) {
-      final cmp = a.date.compareTo(b.date);
-      return cmp != 0 ? cmp : a.order.compareTo(b.order);
-    });
-    notifyListeners();
+    try {
+      final item = ItineraryModel(
+        id: _uuid.v4(),
+        tripId: tripId,
+        date: date,
+        time: time,
+        title: title,
+        description: description,
+        location: location,
+        notes: notes,
+        order: _itineraryItems.where((i) =>
+          i.date.year == date.year && i.date.month == date.month && i.date.day == date.day
+        ).length,
+      );
+      await _db.saveItineraryItem(item);
+      _itineraryItems.add(item);
+      _itineraryItems.sort((a, b) {
+        final cmp = a.date.compareTo(b.date);
+        return cmp != 0 ? cmp : a.order.compareTo(b.order);
+      });
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error adding itinerary item: $e');
+      rethrow;
+    }
   }
 
   Future<void> updateItineraryItem(ItineraryModel item) async {
-    await _db.saveItineraryItem(item);
-    final idx = _itineraryItems.indexWhere((i) => i.id == item.id);
-    if (idx >= 0) _itineraryItems[idx] = item;
-    notifyListeners();
+    try {
+      await _db.saveItineraryItem(item);
+      final idx = _itineraryItems.indexWhere((i) => i.id == item.id);
+      if (idx >= 0) _itineraryItems[idx] = item;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error updating itinerary item: $e');
+      rethrow;
+    }
   }
 
   Future<void> toggleItineraryComplete(String id) async {
-    final idx = _itineraryItems.indexWhere((i) => i.id == id);
-    if (idx >= 0) {
-      final updated = _itineraryItems[idx].copyWith(
-        isCompleted: !_itineraryItems[idx].isCompleted,
-      );
-      await _db.saveItineraryItem(updated);
-      _itineraryItems[idx] = updated;
-      notifyListeners();
+    try {
+      final idx = _itineraryItems.indexWhere((i) => i.id == id);
+      if (idx >= 0) {
+        final updated = _itineraryItems[idx].copyWith(
+          isCompleted: !_itineraryItems[idx].isCompleted,
+        );
+        await _db.saveItineraryItem(updated);
+        _itineraryItems[idx] = updated;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error toggling itinerary: $e');
+      rethrow;
     }
   }
 
   Future<void> deleteItineraryItem(String id) async {
-    await _db.deleteItineraryItem(id);
-    _itineraryItems.removeWhere((i) => i.id == id);
-    notifyListeners();
+    try {
+      await _db.deleteItineraryItem(id);
+      _itineraryItems.removeWhere((i) => i.id == id);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error deleting itinerary item: $e');
+      rethrow;
+    }
   }
 
   // ═══ EXPENSE CRUD ═══
@@ -234,25 +283,35 @@ class TripProvider extends ChangeNotifier {
     String description = '',
     required DateTime date,
   }) async {
-    final expense = ExpenseModel(
-      id: _uuid.v4(),
-      tripId: tripId,
-      amount: amount,
-      paidById: paidById,
-      splitBetweenIds: splitBetweenIds,
-      category: category,
-      description: description,
-      date: date,
-    );
-    await _db.saveExpense(expense);
-    _expenses.insert(0, expense);
-    notifyListeners();
+    try {
+      final expense = ExpenseModel(
+        id: _uuid.v4(),
+        tripId: tripId,
+        amount: amount,
+        paidById: paidById,
+        splitBetweenIds: splitBetweenIds,
+        category: category,
+        description: description,
+        date: date,
+      );
+      await _db.saveExpense(expense);
+      _expenses.insert(0, expense);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error adding expense: $e');
+      rethrow;
+    }
   }
 
   Future<void> deleteExpense(String id) async {
-    await _db.deleteExpense(id);
-    _expenses.removeWhere((e) => e.id == id);
-    notifyListeners();
+    try {
+      await _db.deleteExpense(id);
+      _expenses.removeWhere((e) => e.id == id);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error deleting expense: $e');
+      rethrow;
+    }
   }
 
   // ═══ ANALYTICS ═══

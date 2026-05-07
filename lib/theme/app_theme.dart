@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:animations/animations.dart';
 import 'app_colors.dart';
 
 /// Application theme configuration with Material 3 design.
 class AppTheme {
   AppTheme._();
+
+  static const _pageTransitionsTheme = PageTransitionsTheme(
+    builders: {
+      TargetPlatform.android: SharedAxisPageTransitionsBuilder(transitionType: SharedAxisTransitionType.horizontal),
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+    },
+  );
 
   // ──────────── LIGHT THEME ────────────
   static ThemeData get lightTheme {
@@ -13,6 +22,7 @@ class AppTheme {
       brightness: Brightness.light,
       colorSchemeSeed: AppColors.primary,
       scaffoldBackgroundColor: AppColors.backgroundLight,
+      pageTransitionsTheme: _pageTransitionsTheme,
       textTheme: _textTheme(AppColors.textPrimaryLight),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surfaceLight,
@@ -123,6 +133,7 @@ class AppTheme {
       brightness: Brightness.dark,
       colorSchemeSeed: AppColors.primary,
       scaffoldBackgroundColor: AppColors.backgroundDark,
+      pageTransitionsTheme: _pageTransitionsTheme,
       textTheme: _textTheme(AppColors.textPrimaryDark),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surfaceDark,

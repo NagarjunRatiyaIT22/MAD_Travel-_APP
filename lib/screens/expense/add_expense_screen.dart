@@ -48,10 +48,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_paidById == null) { NotificationService.showSnackBar(context, 'Add participants first', isError: true); return; }
     if (_splitBetween.isEmpty) { NotificationService.showSnackBar(context, 'Select at least one person to split', isError: true); return; }
+    
     setState(() => _loading = true);
-    await context.read<TripProvider>().addExpense(tripId: widget.tripId, amount: double.parse(_amountCtrl.text.trim()), paidById: _paidById!, splitBetweenIds: _splitBetween, category: _category, description: _descCtrl.text.trim(), date: _date);
-    setState(() => _loading = false);
-    if (mounted) { NotificationService.showSnackBar(context, 'Expense added!'); Navigator.pop(context); }
+    try {
+      await context.read<TripProvider>().addExpense(tripId: widget.tripId, amount: double.parse(_amountCtrl.text.trim()), paidById: _paidById!, splitBetweenIds: _splitBetween, category: _category, description: _descCtrl.text.trim(), date: _date);
+      if (mounted) { NotificationService.showSnackBar(context, 'Expense added!'); Navigator.pop(context); }
+    } catch (e) {
+      if (mounted) NotificationService.showSnackBar(context, 'Error saving expense: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -65,7 +71,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       body: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         TextFormField(controller: _amountCtrl, validator: Validators.amount, keyboardType: TextInputType.number, style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.w700), decoration: InputDecoration(labelText: 'Amount', prefixText: '${theme.currencySymbol} ', prefixIcon: const Icon(Icons.attach_money))),
         const SizedBox(height: 16),
-        TextFormField(controller: _descCtrl, decoration: const InputDecoration(labelText: 'Description', prefixIcon: Icon(Icons.description_outlined))),
+        TextFormField(controller: _descCtrl, validator: (v) => Validators.required(v, 'Description'), decoration: const InputDecoration(labelText: 'Description', prefixIcon: Icon(Icons.description_outlined))),
         const SizedBox(height: 16),
         // Category selector
         Text('Category', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
